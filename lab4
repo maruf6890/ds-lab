@@ -1,0 +1,82 @@
+import multiprocessing as mp
+import os 
+from pprint import pprint
+
+documents = [
+    "My name is Maruf and I am a Software Engineering student.",
+    "I am learning Python and artificial intelligence.",
+    "I enjoy building software projects and learning new technologies.",
+    "My name is Maruf and I am a Software Engineering student.",
+    "I am interested in backend development and machine learning.",
+    "I enjoy building software projects and learning new technologies.",
+    "I am learning Python and artificial intelligence.",
+]
+
+N=3 
+
+
+def map_task(doc_id,text):
+    print(
+        f"[worker] {os.getpid()}"
+        f"mapping docunment {doc_id}"
+    )
+    pair=[]
+    for word in text.split(): 
+        pair.append((word,1))
+
+    return pair
+
+def  suffle(all_mapped_pairs, reducer_number):
+    group={}
+    for pairs in all_mapped_pairs:
+        for word, count  in pairs:
+            group.setdefault(word,[]).append(count)
+    print("group")
+    pprint(group)
+    buckets= [{} for _ in range(reducer_number)]
+    print("empty bucket")
+    pprint(buckets)
+    for word,counts in group.items():
+        reducer_index= hash(word) % reducer_number
+        buckets[reducer_index][word]=counts
+    print("full bucket")
+    pprint(buckets)
+    return buckets
+
+def reducer_task(bukcet_id,bukcet):
+    print(
+            f"[worker] {os.getpid()}"
+            f"mapping docunment {bukcet_id}"
+    )
+    reduced={}
+    for word,cnt in bukcet.items():
+        reduced[word]= sum(cnt)
+    return reduced
+    
+
+
+def main():
+    print("map phase")
+
+    with mp.Pool(processes=4) as pool:
+        result= pool.starmap(
+            map_task,
+            [(i,doc) for i, doc in enumerate(documents)]
+        )
+    print("map result")
+    pprint(result)
+
+    buckets= suffle(result,3)
+
+    with mp.Pool(processes=3) as pool:
+        reduced_results= pool.starmap(
+            reducer_task,
+            [
+                (i,bucket) for i,bucket in enumerate(buckets)
+            ]
+        )
+    print("final result")
+    pprint(reduced_results)
+
+if __name__ == "__main__" :
+    main()
